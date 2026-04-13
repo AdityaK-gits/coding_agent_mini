@@ -9,19 +9,27 @@ st.set_page_config(page_title="Mini Dev Agent", page_icon="🤖")
 st.title("🤖 Mini Dev Agent")
 st.markdown("An autonomous coding assistant that generates projects from natural language prompts.")
 
+# Check for API key
+api_key_set = bool(os.getenv("OPENAI_API_KEY"))
+if not api_key_set:
+    st.warning("⚠️ No OPENAI_API_KEY found. Using mock provider (deterministic responses). Set your OpenAI API key in secrets for real generation!")
+
 with st.form("agent_form"):
     prompt = st.text_area(
         "Project Request",
-        placeholder="e.g., Build a login system with JWT auth",
+        placeholder="e.g., Build a weather app with API integration",
         height=100
     )
 
     col1, col2, col3 = st.columns(3)
     with col1:
+        provider_options = ["auto", "mock", "openai"]
+        if not api_key_set:
+            provider_options.remove("openai")
         provider = st.selectbox(
             "Provider",
-            ["auto", "mock", "openai"],
-            help="auto uses OpenAI if OPENAI_API_KEY is set, otherwise mock"
+            provider_options,
+            help="auto uses OpenAI if API key is set, otherwise mock"
         )
     with col2:
         model = st.text_input("Model", placeholder="gpt-4", help="OpenAI model name")
