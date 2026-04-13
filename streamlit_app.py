@@ -9,10 +9,17 @@ st.set_page_config(page_title="Mini Dev Agent", page_icon="🤖")
 st.title("🤖 Mini Dev Agent")
 st.markdown("An autonomous coding assistant that generates projects from natural language prompts.")
 
-# Check for API key
-api_key_set = bool(os.getenv("OPENAI_API_KEY"))
-if not api_key_set:
-    st.warning("⚠️ No OPENAI_API_KEY found. Using mock provider (deterministic responses). Set your OpenAI API key in secrets for real generation!")
+# Check for API keys
+openai_key = bool(os.getenv("OPENAI_API_KEY"))
+gemini_key = bool(os.getenv("GOOGLE_API_KEY"))
+if not openai_key and not gemini_key:
+    st.warning("⚠️ No API keys found (OPENAI_API_KEY or GOOGLE_API_KEY). Using mock provider (deterministic responses).")
+elif not openai_key and gemini_key:
+    st.info("ℹ️ Using Gemini provider (Google API key detected).")
+elif openai_key and not gemini_key:
+    st.info("ℹ️ Using OpenAI provider (OpenAI API key detected).")
+else:
+    st.info("ℹ️ Both API keys detected. Choose your preferred provider.")
 
 with st.form("agent_form"):
     prompt = st.text_area(
@@ -23,21 +30,23 @@ with st.form("agent_form"):
 
     col1, col2, col3 = st.columns(3)
     with col1:
-        provider_options = ["auto", "mock", "openai"]
-        if not api_key_set:
-            provider_options.remove("openai")
+        provider_options = ["auto", "mock"]
+        if openai_key:
+            provider_options.append("openai")
+        if gemini_key:
+            provider_options.append("gemini")
         provider = st.selectbox(
             "Provider",
             provider_options,
-            help="auto uses OpenAI if API key is set, otherwise mock"
+            help="auto uses available API keys, otherwise mock"
         )
     with col2:
-        model = st.text_input("Model", placeholder="gpt-4", help="OpenAI model name")
+        model = st.text_input("Model", placeholder="gpt-4 or gemini-1.5-flash", help="Model name for OpenAI or Gemini")
     with col3:
         reasoning_effort = st.selectbox(
             "Reasoning Effort",
             ["", "minimal", "low", "medium", "high"],
-            help="OpenAI reasoning effort"
+            help="OpenAI reasoning effort (not used for Gemini)"
         )
 
     workspace = st.text_input(

@@ -59,26 +59,26 @@ pip install -r requirements.txt
 python -m mini_dev_agent.cli "Build a login system with JWT auth"
 ```
 
-## OpenAI Provider
+## AI Providers
 
-The CLI now supports three provider modes:
+The agent supports multiple LLM providers:
 
-- `auto`: use OpenAI when `OPENAI_API_KEY` is set, otherwise fall back to the deterministic mock provider
-- `mock`: always use the local deterministic provider
-- `openai`: require a valid OpenAI API key and use the Responses API
+- **Mock**: Free, deterministic responses (always generates "Hello World" apps)
+- **OpenAI**: Requires API key, supports GPT models
+- **Gemini**: Free API key from Google AI Studio, supports Gemini models
+- **Auto**: Uses available API keys in order of preference
 
-Example:
+### Getting API Keys
 
-```bash
-$env:OPENAI_API_KEY="your_api_key_here"
-python -m mini_dev_agent.cli "Build a login system with JWT auth" --provider openai --model gpt-5
-```
+- **Gemini (Free)**: Visit [Google AI Studio](https://makersuite.google.com/app/apikey) and create a key
+- **OpenAI**: Get from [OpenAI Platform](https://platform.openai.com/api-keys)
 
-Optional environment variables:
+### Other AI Tools
 
-- `OPENAI_API_KEY`: API key used by the OpenAI SDK
-- `MINI_DEV_AGENT_OPENAI_MODEL`: default model override for `auto` or `openai`
-- `MINI_DEV_AGENT_REASONING_EFFORT`: optional Responses API reasoning effort
+For tools like GitHub Copilot or ChatGPT without API keys:
+- **Not supported programmatically** - these require browser/web interfaces
+- The **mock provider** serves as a free alternative for testing the agent workflow
+- For real code generation, use Gemini (free) or OpenAI API keys
 
 ## Project Layout
 
@@ -117,12 +117,12 @@ The web UI lets you enter a prompt, choose provider settings, and view the gener
 1. Go to [share.streamlit.io](https://share.streamlit.io)
 2. Connect your GitHub repo: `https://github.com/AdityaK-gits/coding_agent_mini`
 3. Set main file path: `streamlit_app.py`
-4. **Important**: Add your OpenAI API key to secrets:
-   - Go to app settings > Secrets
-   - Add: `OPENAI_API_KEY = "your_api_key_here"`
+4. **Add API keys to secrets** (choose one or both):
+   - `OPENAI_API_KEY = "your_openai_key"`
+   - `GOOGLE_API_KEY = "your_gemini_key"` (free from [Google AI Studio](https://makersuite.google.com/app/apikey))
 5. Deploy!
 
-**Without API key, the app uses mock mode and generates deterministic "Hello World" apps only.**
+**Without API keys, the app uses mock mode and generates deterministic "Hello World" apps only.**
 
 ### Replit
 

@@ -149,20 +149,78 @@ class OpenAIProvider(LLMProvider):
             ) from exc
         return OpenAI()
 
-    def _complete(self, instructions: str, prompt: str) -> str:
-        request: dict[str, Any] = {
-            "model": self.model,
-            "instructions": instructions,
-            "input": prompt,
-        }
-        if self.reasoning_effort and self.reasoning_effort.lower() != "none":
-            request["reasoning"] = {"effort": self.reasoning_effort}
+class GeminiProvider(LLMProvider):
+    """LLM provider backed by Google's Gemini API."""
 
-        response = self.client.responses.create(**request)
-        output_text = getattr(response, "output_text", "")
-        if output_text:
-            return output_text.strip()
-        return str(response).strip()
+    name = "gemini"
+
+    def __init__(
+        self,
+        model: str | None = None,
+        api_key_env: str = "GOOGLE_API_KEY",
+        client: Any | None = None,
+    ) -> None:
+        self.model = model or "gemini-1.5-flash"
+        self.api_key_env = api_key_env
+        self.client = client or self._build_client()
+
+    def plan(self, prompt: str) -> str:
+        return self._complete(
+            instructions=(
+                "You are the task planner for an autonomous coding assistant. "
+                "Return 4 to 7 numbered steps, one per line, each beginning with '<number>. '. "
+                "Focus on implementation, execution, debugging, and verification for the user's request. "
+                "Do not use markdown headings or commentary."
+            ),
+            prompt=f"User request:\n{prompt}",
+        )
+
+    def generate(self, prompt: str, plan: str) -> str:
+        return self._complete(
+            instructions=(
+                "You are the code generation planner for an autonomous coding assistant. "
+                "Return strict JSON with keys project_name, summary, features, components, and verification. "
+                "features, components, and verification must be arrays of 3 to 6 short strings. "
+                "Keep the project tailored to the user request. Do not wrap the JSON in markdown."
+            ),
+            prompt=f"User request:\n{prompt}\n\nExecution plan:\n{plan}",
+        )
+
+    def debug(self, prompt: str, plan: str, error_output: str) -> str:
+        return self._complete(
+            instructions=(
+                "You are the debugger for an autonomous coding assistant. "
+                "Return strict JSON with keys summary and files. "
+                "summary must be a single short sentence. "
+                "files must be an array of objects with keys path and content. "
+                "Only include files when you are confident that replacing or adding a whole file is the safest repair. "
+                "All paths must be relative to the project root. Do not use markdown."
+            ),
+            prompt=(
+                f"User request:\n{prompt}\n\n"
+                f"Execution plan:\n{plan}\n\n"
+                f"Failure context:\n{error_output}"
+            ),
+        )
+
+    def _build_client(self) -> Any:
+        if not os.getenv(self.api_key_env):
+            raise ProviderConfigurationError(
+                f"Set {self.api_key_env} to use the Gemini provider, or run with --provider mock."
+            )
+        try:
+            import google.generativeai as genai
+        except ImportError as exc:
+            raise ProviderConfigurationError(
+                "Install the `google-generativeai` package to use the Gemini provider."
+            ) from exc
+        genai.configure(api_key=os.getenv(self.api_key_env))
+        return genai.GenerativeModel(self.model)
+
+    def _complete(self, instructions: str, prompt: str) -> str:
+        full_prompt = f"{instructions}\n\n{prompt}"
+        response = self.client.generate_content(full_prompt)
+        return response.text.strip()
 
 
 def build_provider(
@@ -176,11 +234,19 @@ def build_provider(
         return MockProvider()
     if normalized_mode == "openai":
         return OpenAIProvider(model=model, reasoning_effort=reasoning_effort, api_key_env=api_key_env)
+    if normalized_mode == "gemini":
+        return GeminiProvider(model=model, api_key_env="GOOGLE_API_KEY")
     if normalized_mode == "auto":
         if _has_openai_sdk() and os.getenv(api_key_env):
             return OpenAIProvider(model=model, reasoning_effort=reasoning_effort, api_key_env=api_key_env)
+        if _has_gemini_sdk() and os.getenv("GOOGLE_API_KEY"):
+            return GeminiProvider(model=model)
         return MockProvider()
     raise ProviderConfigurationError(f"Unsupported provider mode: {mode}")
+
+
+def _has_gemini_sdk() -> bool:
+    return importlib.util.find_spec("google.generativeai") is not None
 
 
 def _has_openai_sdk() -> bool:
